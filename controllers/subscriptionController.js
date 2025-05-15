@@ -6,12 +6,34 @@ exports.subscribe = async (req, res) => {
   try {
     const { email } = req.body;
     const existing = await Subscription.findOne({ email });
+    let isNewSubscription = false;
 
     if (existing) {
       existing.subscribed = true;
       await existing.save();
     } else {
       await Subscription.create({ email });
+      isNewSubscription = true;
+    }
+
+    // Send notification email if it's a new subscription
+    if (isNewSubscription) {
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.EMAIL_FROM,
+          pass: process.env.EMAIL_PASSWORD,
+        },
+      });
+
+      const mailOptions = {
+        from: process.env.EMAIL_FROM,
+        to: process.env.TEAM_EMAIL,
+        subject: 'New Newsletter Subscription',
+        text: `A new user has subscribed with email: ${email}`,
+      };
+
+      await transporter.sendMail(mailOptions);
     }
 
     res.status(201).json({ message: 'Subscribed successfully.' });
@@ -19,6 +41,7 @@ exports.subscribe = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 };
+
 
 // Unsubscribe controller
 exports.unsubscribe = async (req, res) => {
@@ -29,6 +52,24 @@ exports.unsubscribe = async (req, res) => {
 
     sub.subscribed = false;
     await sub.save();
+
+    // Send notification email to admin about unsubscription
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_FROM,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    const mailOptions = {
+      from: process.env.EMAIL_FROM,
+      to: process.env.TEAM_EMAIL, 
+      subject: 'Newsletter Unsubscription Notice',
+      text: `The user with email: ${email} has unsubscribed from the newsletter.`,
+    };
+
+    await transporter.sendMail(mailOptions);
 
     res.json({ message: 'Unsubscribed successfully.' });
   } catch (err) {
