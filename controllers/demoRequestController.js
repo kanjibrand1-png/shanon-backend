@@ -7,8 +7,11 @@ exports.createDemoRequest = async (req, res) => {
     const request = new DemoRequest(req.body);
     await request.save();
 
-    // Send email to internal team
-    await sendEmailToTeam(request);
+    // Send email to internal team and to client in parallel
+    await Promise.all([
+      sendEmailToTeam(request),
+      sendEmailToClient(request),
+    ]);
 
     res.status(201).json({ message: 'Demo request submitted successfully.' });
   } catch (err) {
@@ -16,19 +19,20 @@ exports.createDemoRequest = async (req, res) => {
   }
 };
 
+// Create a reusable transporter so you don't recreate it every time (optional)
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_FROM,
+    pass: process.env.EMAIL_PASSWORD,
+  },
+});
+
 // Send email to internal team when new request is submitted
 const sendEmailToTeam = async (request) => {
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_FROM,
-      pass: process.env.EMAIL_PASSWORD,
-    },
-  });
-
   const mailOptions = {
     from: `"Demo Request" <${process.env.EMAIL_FROM}>`,
-    to: process.env.TEAM_EMAIL, // the internal team email address
+    to: process.env.TEAM_EMAIL, // internal team email
     subject: 'New Demo Request Received',
     html: `
       <h3>New Demo Request</h3>
@@ -38,7 +42,7 @@ const sendEmailToTeam = async (request) => {
       <p><strong>Company:</strong> ${request.company}</p>
       <p><strong>Country:</strong> ${request.country}</p>
       <p><strong>Phone:</strong> ${request.phone}</p>
-      <p><strong>Message:</strong><br/> ${request.message}</p>
+      <p><strong>Message:</strong><br/>${request.message}</p>
     `,
   };
 
@@ -47,5 +51,26 @@ const sendEmailToTeam = async (request) => {
     console.log('Email sent to team:', info.response);
   } catch (error) {
     console.error('Error sending email to team:', error.message);
+  }
+};
+
+// Send thank you email to client
+const sendEmailToClient = async (request) => {
+  const mailOptions = {
+    from: `"Your Company" <${process.env.EMAIL_FROM}>`,
+    to: request.email,
+    subject: 'Thank you for your demo request',
+    html: `
+      <p>Hi ${request.firstName},</p>
+      <p>Thank you for your interest in our product! We have received your demo request and our team will get back to you as soon as possible.</p>
+      <p>Best regards,<br/>The Team</p>
+    `,
+  };
+
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Thank you email sent to client:', info.response);
+  } catch (error) {
+    console.error('Error sending thank you email to client:', error.message);
   }
 };
