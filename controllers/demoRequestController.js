@@ -57,7 +57,7 @@ const sendEmailToTeam = async (request) => {
 // Send thank you email to client
 const sendEmailToClient = async (request) => {
   const mailOptions = {
-    from: `"Your Company" <${process.env.EMAIL_FROM}>`,
+    from: `"Shanon Technologies" <${process.env.EMAIL_FROM}>`,
     to: request.email,
     subject: 'Thank you for your demo request',
     html: `
