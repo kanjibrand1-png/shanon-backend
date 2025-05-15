@@ -63,7 +63,7 @@ const sendEmailToClient = async (request) => {
     html: `
       <p>Hi ${request.firstName},</p>
       <p>Thank you for your interest in our product! We have received your demo request and our team will get back to you as soon as possible.</p>
-      <p>Best regards,<br/>The Team</p>
+      <p>Best regards,<br/>Shanon Technologies</p>
     `,
   };
 
