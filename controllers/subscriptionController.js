@@ -57,6 +57,16 @@ exports.subscribe = async (req, res) => {
 exports.unsubscribe = async (req, res) => {
   try {
     const { email } = req.body;
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const formattedErrors = errors.array().map((err) => ({
+        message: err.msg,
+        param: err.param,
+        location: err.location,
+      }));
+      return res.status(400).json({ errors: formattedErrors });
+    }
+
     const sub = await Subscription.findOne({ email });
     if (!sub) return res.status(404).json({ error: "Email not found" });
 
