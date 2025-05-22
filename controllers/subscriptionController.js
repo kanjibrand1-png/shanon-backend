@@ -6,7 +6,6 @@ const { validationResult } = require("express-validator");
 exports.subscribe = async (req, res) => {
   try {
     const { email } = req.body;
-    const existing = await Subscription.findOne({ email });
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       const formattedErrors = errors.array().map((err) => ({
@@ -17,6 +16,35 @@ exports.subscribe = async (req, res) => {
       return res.status(400).json({ errors: formattedErrors });
     }
 
+    const existing = await Subscription.findOne({ email });
+
+    // Setup transporter first
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_FROM,
+        pass: process.env.EMAIL_PASSWORD,
+      },
+    });
+
+    // Send confirmation email to the user first
+    const confirmationOptions = {
+      from: process.env.EMAIL_FROM,
+      to: email,
+      subject: "Thank you for your subscription",
+      text: "Thank you for subscribing to Shanon Technologies' newsletter! We're excited to keep you updated with our latest news, insights, and innovations.",
+    };
+
+    try {
+      await transporter.sendMail(confirmationOptions);
+    } catch (emailErr) {
+      return res.status(400).json({
+        message:
+          "Failed to send confirmation email. Please check the email address.",
+      });
+    }
+
+    // If email sent successfully, save/update in DB
     let isNewSubscription = false;
 
     if (existing) {
@@ -27,32 +55,22 @@ exports.subscribe = async (req, res) => {
       isNewSubscription = true;
     }
 
-    // Send notification email if it's a new subscription
+    // Notify your team if new
     if (isNewSubscription) {
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.EMAIL_FROM,
-          pass: process.env.EMAIL_PASSWORD,
-        },
-      });
-
-      const mailOptions = {
+      const notifyOptions = {
         from: process.env.EMAIL_FROM,
         to: process.env.TEAM_EMAIL,
         subject: "New Newsletter Subscription",
         text: `A new user has subscribed with email: ${email}`,
       };
-
-      await transporter.sendMail(mailOptions);
+      await transporter.sendMail(notifyOptions);
     }
 
-    res.status(201).json({ message: "Subscribed successfully." });
+    return res.status(201).json({ message: "Subscribed successfully." });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    return res.status(400).json({ error: err.message });
   }
 };
-
 // Unsubscribe controller
 exports.unsubscribe = async (req, res) => {
   try {
