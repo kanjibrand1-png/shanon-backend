@@ -12,6 +12,8 @@ async function isSpamOrUnsafe(text) {
 
 exports.createDemoRequest = async (req, res) => {
   try {
+    console.log('Request body:', req.body);
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       const formatted = errors.array().map((err) => ({
@@ -25,15 +27,17 @@ exports.createDemoRequest = async (req, res) => {
     }
 
     const isSpam = await isSpamOrUnsafe(req.body.message);
+    console.log('Is spam:', isSpam);
     if (isSpam) {
       return res.status(400).json({
-        message:
-          "Your message appears unsafe or spammy. Please revise and try again.",
+        message: "Your message appears unsafe or spammy. Please revise and try again.",
       });
     }
 
     const request = new DemoRequest(req.body);
+    console.log('Saving demo request:', request);
     await request.save();
+    console.log('Demo request saved successfully');
 
     await Promise.all([sendEmailToTeam(request), sendEmailToClient(request)]);
 
@@ -41,9 +45,9 @@ exports.createDemoRequest = async (req, res) => {
       message: "Demo request submitted successfully.",
     });
   } catch (err) {
+    console.error('Error creating demo request:', err);
     res.status(500).json({
-      message:
-        "An unexpected error occurred while processing your demo request.",
+      message: "An unexpected error occurred while processing your demo request.",
     });
   }
 };
