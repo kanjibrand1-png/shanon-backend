@@ -7,7 +7,6 @@ const app = express();
 const cors = require('cors');
 
 app.use(express.json());
-app.use(cors());
 
 app.use(cors({
   origin: ['https://shannon-vhdz.onrender.com'],
@@ -17,7 +16,7 @@ app.use(cors({
 
 app.use('/api/demo', demoRoutes);
 app.use('/api/subscription', subscriptionRoutes);
-
+app.set('trust proxy', 1); 
 
 // Connect DB
 mongoose.connect(process.env.MONGO_URI, {
