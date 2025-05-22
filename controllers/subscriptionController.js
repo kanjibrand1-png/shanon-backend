@@ -1,13 +1,26 @@
 const Subscription = require("../models/Subscription");
 const nodemailer = require("nodemailer");
 const { validationResult } = require("express-validator");
+const dns = require("dns").promises; // use promise-based dns
+
+// Helper to check MX records for domain
+
+async function verifyEmailDomain(email) {
+  const domain = email.split("@")[1];
+  try {
+    const addresses = await dns.resolveMx(domain);
+    return addresses && addresses.length > 0;
+  } catch (err) {
+    return false;
+  }
+}
 
 // Subscribe controller
 exports.subscribe = async (req, res) => {
   try {
     const { email } = req.body;
 
-    // Validate input
+    // Validate input from express-validator middleware
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       const formattedErrors = errors.array().map((err) => ({
@@ -16,6 +29,14 @@ exports.subscribe = async (req, res) => {
         location: err.location,
       }));
       return res.status(400).json({ errors: formattedErrors });
+    }
+
+    // MX record check before proceeding
+    const isDomainValid = await verifyEmailDomain(email);
+    if (!isDomainValid) {
+      return res.status(400).json({
+        message: "Email domain does not exist or cannot receive emails.",
+      });
     }
 
     // Setup transporter
@@ -27,7 +48,7 @@ exports.subscribe = async (req, res) => {
       },
     });
 
-    // Try sending confirmation email
+    // Send confirmation email
     const confirmationOptions = {
       from: process.env.EMAIL_FROM,
       to: email,
@@ -45,7 +66,7 @@ exports.subscribe = async (req, res) => {
       });
     }
 
-    // Only after successful email, check and save/update in DB
+    // Save/update subscription only if email sent successfully
     let isNewSubscription = false;
     let existing = await Subscription.findOne({ email });
 
@@ -59,7 +80,7 @@ exports.subscribe = async (req, res) => {
       isNewSubscription = true;
     }
 
-    // Notify your team only if it's a new subscription
+    // Notify team if new subscription
     if (isNewSubscription) {
       const notifyOptions = {
         from: process.env.EMAIL_FROM,
@@ -80,6 +101,7 @@ exports.subscribe = async (req, res) => {
     return res.status(400).json({ error: err.message });
   }
 };
+
 // Unsubscribe controller
 exports.unsubscribe = async (req, res) => {
   try {
