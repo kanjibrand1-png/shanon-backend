@@ -14,31 +14,37 @@ exports.createDemoRequest = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      const formatted = errors.array().map(err => ({
+      const formatted = errors.array().map((err) => ({
         message: err.msg,
         field: err.param,
       }));
-      return res.status(400).json({ errors: formatted });
+      return res.status(400).json({
+        message: "Validation failed. Please check the input fields.",
+        errors: formatted,
+      });
     }
 
     const isSpam = await isSpamOrUnsafe(req.body.message);
     if (isSpam) {
       return res.status(400).json({
-        message: "Your message appears unsafe or spammy. Please revise and try again.",
+        message:
+          "Your message appears unsafe or spammy. Please revise and try again.",
       });
     }
 
     const request = new DemoRequest(req.body);
     await request.save();
 
-    await Promise.all([
-      sendEmailToTeam(request),
-      sendEmailToClient(request),
-    ]);
+    await Promise.all([sendEmailToTeam(request), sendEmailToClient(request)]);
 
-    res.status(201).json({ message: "Demo request submitted successfully." });
+    res.status(201).json({
+      message: "Demo request submitted successfully.",
+    });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    res.status(500).json({
+      message:
+        "An unexpected error occurred while processing your demo request.",
+    });
   }
 };
 
@@ -69,9 +75,10 @@ const sendEmailToTeam = async (request) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log("Email sent to team");
   } catch (error) {
-    console.error("Error sending email to team:", error.message);
+    if (process.env.NODE_ENV === "development") {
+      console.error("Failed to send email to team:", error.message);
+    }
   }
 };
 
@@ -89,8 +96,5 @@ const sendEmailToClient = async (request) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log("Thank you email sent to client");
-  } catch (error) {
-    console.error("Error sending email to client:", error.message);
-  }
+  } catch (error) {}
 };
