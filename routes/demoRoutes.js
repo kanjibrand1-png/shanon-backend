@@ -15,7 +15,7 @@ const demoRequestLimiter = rateLimit({
 });
 
 router.post(
-  "/demo-request",
+  "/",
   demoRequestLimiter,
   [
     body("firstName").trim().isLength({ min: 2 }).withMessage("First name is too short."),
