@@ -1,14 +1,7 @@
 const { validationResult } = require("express-validator");
 const DemoRequest = require("../models/demoRequest");
 const nodemailer = require("nodemailer");
-const { OpenAI } = require("openai");
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-async function isSpamOrUnsafe(text) {
-  const result = await openai.moderations.create({ input: text });
-  return result.results[0].flagged;
-}
 
 exports.createDemoRequest = async (req, res) => {
   try {
@@ -23,14 +16,6 @@ exports.createDemoRequest = async (req, res) => {
       return res.status(400).json({
         message: "Validation failed. Please check the input fields.",
         errors: formatted,
-      });
-    }
-
-    const isSpam = await isSpamOrUnsafe(req.body.message);
-    console.log('Is spam:', isSpam);
-    if (isSpam) {
-      return res.status(400).json({
-        message: "Your message appears unsafe or spammy. Please revise and try again.",
       });
     }
 
@@ -51,7 +36,6 @@ exports.createDemoRequest = async (req, res) => {
     });
   }
 };
-
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
