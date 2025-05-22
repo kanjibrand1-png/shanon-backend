@@ -1,5 +1,7 @@
 // routes/subscriptionRoutes.js
 const express = require("express");
+const { body, validationResult } = require('express-validator');
+
 const {
   subscribe,
   unsubscribe,
@@ -8,7 +10,16 @@ const {
 
 const router = express.Router();
 
-router.post("/subscribe", subscribe);
+router.post(
+  '/subscribe',
+  [
+    body('email')
+      .isEmail()
+      .withMessage('Please provide a valid email address.')
+      .normalizeEmail()
+  ],
+  subscribe
+);
 router.post("/unsubscribe", unsubscribe);
 
 router.post("/send-to-all", async (req, res) => {
