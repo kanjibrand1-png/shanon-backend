@@ -39,6 +39,12 @@ exports.subscribe = async (req, res) => {
       });
     }
 
+    // Check if subscription already exists and is subscribed
+    let existing = await Subscription.findOne({ email });
+    if (existing && existing.subscribed) {
+      return res.status(409).json({ message: "Email is already subscribed." });
+    }
+
     // Setup transporter
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -68,13 +74,9 @@ exports.subscribe = async (req, res) => {
 
     // Save/update subscription only if email sent successfully
     let isNewSubscription = false;
-    let existing = await Subscription.findOne({ email });
-
     if (existing) {
-      if (!existing.subscribed) {
-        existing.subscribed = true;
-        await existing.save();
-      }
+      existing.subscribed = true;
+      await existing.save();
     } else {
       await Subscription.create({ email });
       isNewSubscription = true;
