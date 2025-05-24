@@ -27,7 +27,7 @@ const PORT = process.env.PORT;
 // Start server
 connectDB()
   .then(() => {
-    server.listen(PORT, () => {
+    app.listen(PORT, () => {
       console.log(`Server is running on http://localhost:${PORT}`);
     });
   })
