@@ -1,6 +1,7 @@
 const { validationResult } = require("express-validator");
 const DemoRequest = require("../models/demoRequest");
 const nodemailer = require("nodemailer");
+const dns = require("dns").promises;
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -10,6 +11,15 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+async function isEmailDomainValid(email) {
+  const domain = email.split("@")[1];
+  try {
+    const mxRecords = await dns.resolveMx(domain);
+    return mxRecords && mxRecords.length > 0;
+  } catch {
+    return false;
+  }
+}
 const sendEmailToTeam = async (request) => {
   const mailOptions = {
     from: `"Demo Request" <${process.env.EMAIL_FROM}>`,
@@ -61,7 +71,15 @@ exports.createDemoRequest = async (req, res) => {
 
     const request = new DemoRequest(req.body);
 
-    // Try sending email to client first
+    // ✅ Check if email domain is valid before doing anything else
+    const isValidDomain = await isEmailDomainValid(request.email);
+    if (!isValidDomain) {
+      return res.status(400).json({
+        message: "Invalid email domain. Please check your email address.",
+      });
+    }
+
+    // ✅ Try sending email to client first
     try {
       await sendEmailToClient(request);
     } catch (emailErr) {
@@ -71,7 +89,7 @@ exports.createDemoRequest = async (req, res) => {
       });
     }
 
-    // Now save to DB and notify team
+    // ✅ Save to DB and notify team
     await request.save();
     await sendEmailToTeam(request);
 
@@ -85,3 +103,4 @@ exports.createDemoRequest = async (req, res) => {
     });
   }
 };
+
