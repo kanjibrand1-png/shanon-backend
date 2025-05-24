@@ -6,7 +6,7 @@ const { createDemoRequest } = require("../controllers/demoRequestController");
 
 const demoRequestLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000, // 24 hrs
-  max: 50,
+  max: 5,
   handler: (req, res) => {
     return res.status(429).json({
       message: "Too many requests from this IP, please try again tomorrow.",
