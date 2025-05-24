@@ -2,40 +2,6 @@ const { validationResult } = require("express-validator");
 const DemoRequest = require("../models/demoRequest");
 const nodemailer = require("nodemailer");
 
-
-exports.createDemoRequest = async (req, res) => {
-  try {
-    console.log('Request body:', req.body);
-
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      const formatted = errors.array().map((err) => ({
-        message: err.msg,
-        field: err.param,
-      }));
-      return res.status(400).json({
-        message: "Validation failed. Please check the input fields.",
-        errors: formatted,
-      });
-    }
-
-    const request = new DemoRequest(req.body);
-    console.log('Saving demo request:', request);
-    await request.save();
-    console.log('Demo request saved successfully');
-
-    await Promise.all([sendEmailToTeam(request), sendEmailToClient(request)]);
-
-    res.status(201).json({
-      message: "Demo request submitted successfully.",
-    });
-  } catch (err) {
-    console.error('Error creating demo request:', err);
-    res.status(500).json({
-      message: "An unexpected error occurred while processing your demo request.",
-    });
-  }
-};
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -61,13 +27,7 @@ const sendEmailToTeam = async (request) => {
     `,
   };
 
-  try {
-    await transporter.sendMail(mailOptions);
-  } catch (error) {
-    if (process.env.NODE_ENV === "development") {
-      console.error("Failed to send email to team:", error.message);
-    }
-  }
+  await transporter.sendMail(mailOptions);
 };
 
 const sendEmailToClient = async (request) => {
@@ -82,7 +42,46 @@ const sendEmailToClient = async (request) => {
     `,
   };
 
+  return transporter.sendMail(mailOptions); // Return the Promise to catch failure
+};
+
+exports.createDemoRequest = async (req, res) => {
   try {
-    await transporter.sendMail(mailOptions);
-  } catch (error) {}
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const formatted = errors.array().map((err) => ({
+        message: err.msg,
+        field: err.param,
+      }));
+      return res.status(400).json({
+        message: "Validation failed. Please check the input fields.",
+        errors: formatted,
+      });
+    }
+
+    const request = new DemoRequest(req.body);
+
+    // Try sending email to client first
+    try {
+      await sendEmailToClient(request);
+    } catch (emailErr) {
+      console.error("Email to client failed:", emailErr.message);
+      return res.status(400).json({
+        message: "Invalid or unreachable email address. Please check and try again.",
+      });
+    }
+
+    // Now save to DB and notify team
+    await request.save();
+    await sendEmailToTeam(request);
+
+    res.status(201).json({
+      message: "Demo request submitted successfully.",
+    });
+  } catch (err) {
+    console.error("Unexpected error:", err);
+    res.status(500).json({
+      message: "An unexpected error occurred while processing your demo request.",
+    });
+  }
 };
