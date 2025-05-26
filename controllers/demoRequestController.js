@@ -52,7 +52,7 @@ const sendEmailToClient = async (request) => {
     `,
   };
 
-  return transporter.sendMail(mailOptions); // Return the Promise to catch failure
+  return transporter.sendMail(mailOptions); 
 };
 
 exports.createDemoRequest = async (req, res) => {
@@ -71,7 +71,6 @@ exports.createDemoRequest = async (req, res) => {
 
     const request = new DemoRequest(req.body);
 
-    // ✅ Check if email domain is valid before doing anything else
     const isValidDomain = await isEmailDomainValid(request.email);
     if (!isValidDomain) {
       return res.status(400).json({
@@ -79,7 +78,6 @@ exports.createDemoRequest = async (req, res) => {
       });
     }
 
-    // ✅ Try sending email to client first
     try {
       await sendEmailToClient(request);
     } catch (emailErr) {
@@ -89,7 +87,6 @@ exports.createDemoRequest = async (req, res) => {
       });
     }
 
-    // ✅ Save to DB and notify team
     await request.save();
     await sendEmailToTeam(request);
 

@@ -24,7 +24,6 @@ app.set("trust proxy", 1);
 
 const PORT = process.env.PORT;
 
-// Start server
 connectDB()
   .then(() => {
     app.listen(PORT, () => {

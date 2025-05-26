@@ -1,4 +1,3 @@
-// models/DemoRequest.js
 const mongoose = require('mongoose');
 
 const demoRequestSchema = new mongoose.Schema({

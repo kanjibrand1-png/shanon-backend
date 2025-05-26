@@ -1,9 +1,8 @@
 const Subscription = require("../models/Subscription");
 const nodemailer = require("nodemailer");
 const { validationResult } = require("express-validator");
-const dns = require("dns").promises; // use promise-based dns
+const dns = require("dns").promises; 
 
-// Helper to check MX records for domain
 
 async function verifyEmailDomain(email) {
   const domain = email.split("@")[1];
@@ -15,12 +14,10 @@ async function verifyEmailDomain(email) {
   }
 }
 
-// Subscribe controller
 exports.subscribe = async (req, res) => {
   try {
     const { email } = req.body;
 
-    // Validate input from express-validator middleware
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       const formattedErrors = errors.array().map((err) => ({
@@ -31,7 +28,6 @@ exports.subscribe = async (req, res) => {
       return res.status(400).json({ errors: formattedErrors });
     }
 
-    // MX record check before proceeding
     const isDomainValid = await verifyEmailDomain(email);
     if (!isDomainValid) {
       return res.status(400).json({
@@ -39,13 +35,11 @@ exports.subscribe = async (req, res) => {
       });
     }
 
-    // Check if subscription already exists and is subscribed
     let existing = await Subscription.findOne({ email });
     if (existing && existing.subscribed) {
       return res.status(409).json({ message: "Email is already subscribed." });
     }
 
-    // Setup transporter
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -54,7 +48,6 @@ exports.subscribe = async (req, res) => {
       },
     });
 
-    // Send confirmation email
     const confirmationOptions = {
       from: process.env.EMAIL_FROM,
       to: email,
@@ -72,7 +65,6 @@ exports.subscribe = async (req, res) => {
       });
     }
 
-    // Save/update subscription only if email sent successfully
     let isNewSubscription = false;
     if (existing) {
       existing.subscribed = true;
@@ -82,7 +74,6 @@ exports.subscribe = async (req, res) => {
       isNewSubscription = true;
     }
 
-    // Notify team if new subscription
     if (isNewSubscription) {
       const notifyOptions = {
         from: process.env.EMAIL_FROM,
@@ -104,7 +95,6 @@ exports.subscribe = async (req, res) => {
   }
 };
 
-// Unsubscribe controller
 exports.unsubscribe = async (req, res) => {
   try {
     const { email } = req.body;
@@ -124,7 +114,6 @@ exports.unsubscribe = async (req, res) => {
     sub.subscribed = false;
     await sub.save();
 
-    // Send notification email to admin about unsubscription
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -148,7 +137,6 @@ exports.unsubscribe = async (req, res) => {
   }
 };
 
-//send emails to all subscribers
 exports.sendEmailToSubscribers = async (subject, message) => {
   try {
     const subscribers = await Subscription.find({ subscribed: true });
