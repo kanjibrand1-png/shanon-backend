@@ -3,12 +3,14 @@ const DemoRequest = require("../models/demoRequest");
 const nodemailer = require("nodemailer");
 const dns = require("dns").promises;
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
+const transporter = nodemailer.createTransporter({
+  host: 'mail.shanon-technologies.com', // ✅ Add this
+  port: 587,
+  secure: false,
   auth: {
-    user: process.env.EMAIL_FROM,
-    pass: process.env.EMAIL_PASSWORD,
-  },
+    user: process.env.EMAIL_FROM, // e.g., 'contact@shanon-technologies.com'
+    pass: process.env.EMAIL_PASSWORD
+  }
 });
 
 async function isEmailDomainValid(email) {

@@ -1,8 +1,7 @@
 const Subscription = require("../models/Subscription");
 const nodemailer = require("nodemailer");
 const { validationResult } = require("express-validator");
-const dns = require("dns").promises; 
-
+const dns = require("dns").promises;
 
 async function verifyEmailDomain(email) {
   const domain = email.split("@")[1];
@@ -40,10 +39,12 @@ exports.subscribe = async (req, res) => {
       return res.status(409).json({ message: "Email is already subscribed." });
     }
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
+    const transporter = nodemailer.createTransporter({
+      host: "mail.shanon-technologies.com", // ✅ Add this
+      port: 587,
+      secure: false,
       auth: {
-        user: process.env.EMAIL_FROM,
+        user: process.env.EMAIL_FROM, // e.g., 'contact@shanon-technologies.com'
         pass: process.env.EMAIL_PASSWORD,
       },
     });
@@ -52,8 +53,7 @@ exports.subscribe = async (req, res) => {
       from: process.env.EMAIL_FROM,
       to: email,
       subject: "Thank you for your subscription",
-      text:
-        "Thank you for subscribing to Shanon Technologies' newsletter! We're excited to keep you updated with our latest news, insights, and innovations.",
+      text: "Thank you for subscribing to Shanon Technologies' newsletter! We're excited to keep you updated with our latest news, insights, and innovations.",
     };
 
     try {
@@ -114,12 +114,14 @@ exports.unsubscribe = async (req, res) => {
     sub.subscribed = false;
     await sub.save();
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
+    const transporter = nodemailer.createTransporter({
+      host: 'mail.shanon-technologies.com', // ✅ Add this
+      port: 587,
+      secure: false,
       auth: {
-        user: process.env.EMAIL_FROM,
-        pass: process.env.EMAIL_PASSWORD,
-      },
+        user: process.env.EMAIL_FROM, // e.g., 'contact@shanon-technologies.com'
+        pass: process.env.EMAIL_PASSWORD
+      }
     });
 
     const mailOptions = {
@@ -141,14 +143,15 @@ exports.sendEmailToSubscribers = async (subject, message) => {
   try {
     const subscribers = await Subscription.find({ subscribed: true });
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
+    const transporter = nodemailer.createTransporter({
+      host: 'mail.shanon-technologies.com', // ✅ Add this
+      port: 587,
+      secure: false,
       auth: {
-        user: process.env.EMAIL_FROM,
-        pass: process.env.EMAIL_PASSWORD,
-      },
+        user: process.env.EMAIL_FROM, // e.g., 'contact@shanon-technologies.com'
+        pass: process.env.EMAIL_PASSWORD
+      }
     });
-
     const mailOptions = {
       from: process.env.EMAIL_FROM,
       subject,
