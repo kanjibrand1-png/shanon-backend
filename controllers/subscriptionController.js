@@ -39,7 +39,7 @@ exports.subscribe = async (req, res) => {
       return res.status(409).json({ message: "Email is already subscribed." });
     }
 
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: "mail.shanon-technologies.com", // ✅ Add this
       port: 587,
       secure: false,
@@ -114,7 +114,7 @@ exports.unsubscribe = async (req, res) => {
     sub.subscribed = false;
     await sub.save();
 
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: 'mail.shanon-technologies.com', // ✅ Add this
       port: 587,
       secure: false,
@@ -143,7 +143,7 @@ exports.sendEmailToSubscribers = async (subject, message) => {
   try {
     const subscribers = await Subscription.find({ subscribed: true });
 
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: 'mail.shanon-technologies.com', // ✅ Add this
       port: 587,
       secure: false,

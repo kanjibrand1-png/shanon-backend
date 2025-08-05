@@ -3,7 +3,7 @@ const DemoRequest = require("../models/demoRequest");
 const nodemailer = require("nodemailer");
 const dns = require("dns").promises;
 
-const transporter = nodemailer.createTransporter({
+const transporter = nodemailer.createTransport({
   host: 'mail.shanon-technologies.com', // ✅ Add this
   port: 587,
   secure: false,
