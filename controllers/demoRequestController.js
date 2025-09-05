@@ -10,6 +10,9 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: process.env.EMAIL_FROM, // e.g., 'contact@shanon-technologies.com'
     pass: process.env.EMAIL_PASSWORD
+  },
+  tls: {
+    rejectUnauthorized: false
   }
 });
 

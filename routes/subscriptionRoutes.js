@@ -1,10 +1,14 @@
 const express = require("express");
 const { body, validationResult } = require("express-validator");
+const adminAuth = require("../middlewares/adminAuth");
 
 const {
   subscribe,
   unsubscribe,
   sendEmailToSubscribers,
+  getAllSubscribers,
+  getSubscriberStats,
+  deleteSubscriber,
 } = require("../controllers/subscriptionController");
 
 const router = express.Router();
@@ -46,7 +50,7 @@ router.post(
   unsubscribe
 );
 
-router.post("/send-to-all", async (req, res) => {
+router.post("/send-to-all", adminAuth, async (req, res) => {
   const { subject, message } = req.body;
 
   if (!subject || !message) {
@@ -61,5 +65,9 @@ router.post("/send-to-all", async (req, res) => {
   }
 });
 
+// Admin routes
+router.get("/admin", adminAuth, getAllSubscribers);
+router.get("/admin/stats", adminAuth, getSubscriberStats);
+router.delete("/admin/:id", adminAuth, deleteSubscriber);
 
 module.exports = router;
