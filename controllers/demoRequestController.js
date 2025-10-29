@@ -15,6 +15,7 @@ const transporter = nodemailer.createTransport({
     rejectUnauthorized: false
   }
 });
+/* azljehlazh */
 
 async function isEmailDomainValid(email) {
   const domain = email.split("@")[1];
