@@ -25,8 +25,9 @@ const shippingRoutes = require("./routes/shippingRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
+const stockNotificationRoutes = require("./routes/stockNotificationRoutes");
+const stripeRoutes = require("./routes/stripeRoutes");
 
-require("dotenv").config();
 const app = express();
 
 // Trust proxy for rate limiting (needed for production deployments)
@@ -130,8 +131,8 @@ app.use('/api/shipping', shippingRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/analytics', analyticsRoutes);
-app.use('/api/stock-notifications', require('./routes/stockNotificationRoutes'));
-app.use('/api/stripe', require('./routes/stripeRoutes'));
+app.use('/api/stock-notifications', stockNotificationRoutes);
+app.use('/api/stripe', stripeRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
