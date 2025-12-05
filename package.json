@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
-    "build": "echo 'No build step needed'",
+    "build": "npm install express@4.21.2 --force && npm rebuild express",
+    "postinstall": "node verify-express.js",
     "create-admin": "node createFirstSuperAdmin.js",
     "migrate-images": "node migrateImageFields.js"
   },
@@ -18,7 +19,7 @@
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
-    "express": "^4.21.2",
+    "express": "4.21.2",
     "express-mongo-sanitize": "^2.2.0",
     "express-rate-limit": "^7.5.0",
     "express-validator": "^7.2.1",

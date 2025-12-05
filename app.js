@@ -104,6 +104,32 @@ app.use((req, res, next) => {
   next();
 });
 
+// Domain redirects (similar to Cloudflare Workers Routes)
+// For Shanon Technologies website on LWS
+app.use((req, res, next) => {
+  const hostname = req.headers.host || req.hostname;
+  
+  // Redirect www.shanon-technologies.com to dev.shanon-technologies.com
+  // Preserves path and query string (like Cloudflare dynamic redirect)
+  if (hostname === 'www.shanon-technologies.com') {
+    const path = req.path || '/';
+    const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+    const redirectUrl = `https://dev.shanon-technologies.com${path}${query}`;
+    return res.redirect(301, redirectUrl);
+  }
+  
+  // Add more redirect rules here as needed
+  // Example: redirect other subdomains
+  // if (hostname === 'old-subdomain.shanon-technologies.com') {
+  //   const path = req.path || '/';
+  //   const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+  //   const redirectUrl = `https://new-subdomain.shanon-technologies.com${path}${query}`;
+  //   return res.redirect(301, redirectUrl);
+  // }
+  
+  next();
+});
+
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   setHeaders: (res, path) => {
