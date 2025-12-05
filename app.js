@@ -173,11 +173,24 @@ app.use((req, res, next) => {
 
 // Domain redirects (similar to Cloudflare Workers Routes)
 // For Shanon Technologies website on LWS
-// IMPORTANT: Must skip OPTIONS (preflight) and API routes to avoid breaking CORS
+// IMPORTANT: This redirect ONLY applies to www.shanon-technologies.com, NOT to API subdomain
 app.use((req, res, next) => {
+  // Get hostname from various possible sources (Render proxy, direct, etc.)
+  const hostname = (req.headers.host || req.hostname || req.get('host') || req.headers['x-forwarded-host'] || '').toLowerCase();
+  
+  // Remove port if present (e.g., www.shanon-technologies.com:443 -> www.shanon-technologies.com)
+  const cleanHostname = hostname.split(':')[0].trim();
+  
+  // CRITICAL: NEVER redirect API subdomain (app.shanon-technologies.com)
+  // This ensures API requests are never redirected, which would break CORS
+  if (cleanHostname === 'app.shanon-technologies.com' || 
+      cleanHostname.includes('app.shanon-technologies.com')) {
+    return next(); // Skip redirect for API subdomain
+  }
+  
   // Skip redirect for:
   // 1. OPTIONS requests (CORS preflight) - CRITICAL for CORS to work
-  // 2. API routes - API should be accessible directly
+  // 2. API routes - API should be accessible directly (double protection)
   // 3. Static files and uploads
   if (req.method === 'OPTIONS' || 
       req.path.startsWith('/api') || 
@@ -187,21 +200,14 @@ app.use((req, res, next) => {
     return next();
   }
   
-  // Get hostname from various possible sources (Render proxy, direct, etc.)
-  const hostname = (req.headers.host || req.hostname || req.get('host') || req.headers['x-forwarded-host'] || '').toLowerCase();
-  
-  // Remove port if present (e.g., www.shanon-technologies.com:443 -> www.shanon-technologies.com)
-  const cleanHostname = hostname.split(':')[0].trim();
-  
   // Debug logging to help troubleshoot
   if (process.env.NODE_ENV !== 'production') {
     console.log('[Redirect Check] Hostname:', cleanHostname, '| Original:', hostname, '| Path:', req.path, '| Method:', req.method);
   }
   
-  // Redirect www.shanon-technologies.com to dev.shanon-technologies.com
-  // Preserves path and query string (like Cloudflare dynamic redirect)
-  if (cleanHostname === 'www.shanon-technologies.com' || 
-      cleanHostname.includes('www.shanon-technologies.com')) {
+  // ONLY redirect www.shanon-technologies.com to dev.shanon-technologies.com
+  // Must be exact match to avoid redirecting other subdomains
+  if (cleanHostname === 'www.shanon-technologies.com') {
     const path = req.path || '/';
     const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
     const redirectUrl = `https://dev.shanon-technologies.com${path}${query}`;
