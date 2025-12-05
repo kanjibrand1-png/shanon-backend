@@ -173,12 +173,25 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/stock-notifications', stockNotificationRoutes);
 app.use('/api/stripe', stripeRoutes);
 
+// Debug route to check hostname (for troubleshooting redirects)
+app.get('/debug-host', (req, res) => {
+  res.json({
+    host: req.headers.host,
+    hostname: req.hostname,
+    getHost: req.get('host'),
+    xForwardedHost: req.headers['x-forwarded-host'],
+    url: req.url,
+    path: req.path
+  });
+});
+
 // Basic route
 app.get('/', (req, res) => {
   res.json({ 
     message: 'Shanon Technologies Backend API is running!',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
+    hostname: req.headers.host || req.hostname,
     corsOrigins: [
       process.env.FRONT_URL,
       process.env.CORS_ORIGIN,
