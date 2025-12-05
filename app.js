@@ -108,21 +108,32 @@ app.use((req, res, next) => {
 
 // Domain redirects (similar to Cloudflare Workers Routes)
 // For Shanon Technologies website on LWS
+// IMPORTANT: This must run BEFORE API routes to catch www requests
 app.use((req, res, next) => {
-  const hostname = req.headers.host || req.hostname;
+  // Get hostname from various possible sources (Render proxy, direct, etc.)
+  const hostname = (req.headers.host || req.hostname || req.get('host') || req.headers['x-forwarded-host'] || '').toLowerCase();
+  
+  // Remove port if present (e.g., www.shanon-technologies.com:443 -> www.shanon-technologies.com)
+  const cleanHostname = hostname.split(':')[0].trim();
+  
+  // Debug logging to help troubleshoot
+  console.log('[Redirect Check] Hostname:', cleanHostname, '| Original:', hostname, '| Path:', req.path);
   
   // Redirect www.shanon-technologies.com to dev.shanon-technologies.com
   // Preserves path and query string (like Cloudflare dynamic redirect)
-  if (hostname === 'www.shanon-technologies.com') {
+  if (cleanHostname === 'www.shanon-technologies.com' || 
+      cleanHostname.includes('www.shanon-technologies.com')) {
     const path = req.path || '/';
     const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
     const redirectUrl = `https://dev.shanon-technologies.com${path}${query}`;
+    
+    console.log('[Redirect] Redirecting www to dev:', redirectUrl);
     return res.redirect(301, redirectUrl);
   }
   
   // Add more redirect rules here as needed
   // Example: redirect other subdomains
-  // if (hostname === 'old-subdomain.shanon-technologies.com') {
+  // if (cleanHostname === 'old-subdomain.shanon-technologies.com') {
   //   const path = req.path || '/';
   //   const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
   //   const redirectUrl = `https://new-subdomain.shanon-technologies.com${path}${query}`;
