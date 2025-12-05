@@ -68,7 +68,9 @@ app.use(cors({
   origin: [
     'http://localhost:3000',  // Add this for local development
     'https://www.shanon-technologies.com',
-    'https://shanon-technologies.com'
+    'https://shanon-technologies.com',
+    'https://dev.shanon-technologies.com',  // Frontend subdomain
+    'https://app.shanon-technologies.com'   // Backend subdomain
   ],
   credentials: true
 }));
