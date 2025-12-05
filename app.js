@@ -33,6 +33,35 @@ const app = express();
 // Trust proxy for rate limiting (needed for production deployments)
 app.set("trust proxy", 1);
 
+// CRITICAL: Handle OPTIONS requests FIRST before any redirects
+// This must be at the very top to prevent redirects from breaking CORS preflight
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://www.shanon-technologies.com',
+    'https://shanon-technologies.com',
+    'https://dev.shanon-technologies.com',
+    'https://www.dev.shanon-technologies.com',
+    'https://app.shanon-technologies.com'
+  ];
+  
+  if (process.env.FRONT_URL) allowedOrigins.push(process.env.FRONT_URL);
+  if (process.env.CORS_ORIGIN) allowedOrigins.push(process.env.CORS_ORIGIN);
+  
+  if (origin && (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.some(allowed => origin.includes(allowed)))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+    res.header('Access-Control-Max-Age', '86400'); // 24 hours
+    return res.sendStatus(204);
+  }
+  
+  res.sendStatus(403);
+});
+
 // Security middleware
 app.use(helmet());
 
@@ -119,8 +148,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// Force HTTPS in production
+// Force HTTPS in production - MUST skip OPTIONS to avoid breaking CORS
 app.use((req, res, next) => {
+  // Skip HTTPS redirect for OPTIONS requests (CORS preflight)
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+  
   if (process.env.NODE_ENV === 'production') {
     if (req.headers['x-forwarded-proto'] !== 'https') {
       return res.redirect(`https://${req.headers.host}${req.url}`);
