@@ -50,11 +50,8 @@ exports.createSuperAdmin = async (req, res) => {
 // Login super admin
 exports.loginSuperAdmin = async (req, res) => {
   try {
-    // Set CORS headers explicitly for login
-    res.header('Access-Control-Allow-Origin', 'https://www.dev.shanon-technologies.com');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Cache-Control, cache-control');
-    res.header('Access-Control-Allow-Credentials', 'true');
+    // CORS headers are handled by main middleware in app.js
+    // No need to set them here - they're already configured globally
     
     const { email, password } = req.body;
     const admin = await SuperAdmin.findOne({ email });

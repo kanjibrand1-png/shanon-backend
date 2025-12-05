@@ -10,6 +10,35 @@ const rateLimit = require("express-rate-limit");
 const mongoSanitize = require("express-mongo-sanitize");
 const path = require("path");
 
+// Centralized CORS allowed origins configuration
+const getAllowedOrigins = () => {
+  const origins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'https://www.shanon-technologies.com',
+    'https://shanon-technologies.com',
+    'https://dev.shanon-technologies.com',
+    'https://www.dev.shanon-technologies.com',
+    'https://app.shanon-technologies.com'
+  ];
+  
+  // Add environment variable origins if they exist
+  if (process.env.FRONT_URL) origins.push(process.env.FRONT_URL);
+  if (process.env.CORS_ORIGIN) origins.push(process.env.CORS_ORIGIN);
+  if (process.env.FRONTEND_URL) origins.push(process.env.FRONTEND_URL);
+  
+  return origins;
+};
+
+// Helper function to check if origin is allowed
+const isOriginAllowed = (origin) => {
+  if (!origin) return true; // Allow requests with no origin (mobile apps, Postman, etc.)
+  
+  const allowedOrigins = getAllowedOrigins();
+  return allowedOrigins.indexOf(origin) !== -1 || 
+         allowedOrigins.some(allowed => origin.includes(allowed));
+};
+
 // Import existing routes
 const demoRoutes = require("./routes/demoRoutes");
 const subscriptionRoutes = require("./routes/subscriptionRoutes");
@@ -38,26 +67,10 @@ app.set("trust proxy", 1);
 app.use((req, res, next) => {
   // Intercept ALL OPTIONS requests immediately
   if (req.method === 'OPTIONS') {
-    console.log('[OPTIONS Handler] Intercepted OPTIONS request:', req.path, 'Origin:', req.headers.origin);
-    
     const origin = req.headers.origin;
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'https://www.shanon-technologies.com',
-      'https://shanon-technologies.com',
-      'https://dev.shanon-technologies.com',
-      'https://www.dev.shanon-technologies.com',
-      'https://app.shanon-technologies.com'
-    ];
+    console.log('[OPTIONS Handler] Intercepted OPTIONS request:', req.path, 'Origin:', origin);
     
-    if (process.env.FRONT_URL) allowedOrigins.push(process.env.FRONT_URL);
-    if (process.env.CORS_ORIGIN) allowedOrigins.push(process.env.CORS_ORIGIN);
-    
-    // Check if origin is allowed
-    const isAllowed = !origin || allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.some(allowed => origin.includes(allowed));
-    
-    if (isAllowed) {
+    if (isOriginAllowed(origin)) {
       res.header('Access-Control-Allow-Origin', origin || '*');
       res.header('Access-Control-Allow-Credentials', 'true');
       res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
@@ -104,26 +117,10 @@ const authLimiter = rateLimit({
 });
 
 // Configure CORS - Must be before redirect middleware
+// Uses centralized origin checking function
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'https://www.shanon-technologies.com',
-      'https://shanon-technologies.com',
-      'https://dev.shanon-technologies.com',
-      'https://www.dev.shanon-technologies.com',  // In case of DNS issues
-      'https://app.shanon-technologies.com'
-    ];
-    
-    // Also check environment variables
-    if (process.env.FRONT_URL) allowedOrigins.push(process.env.FRONT_URL);
-    if (process.env.CORS_ORIGIN) allowedOrigins.push(process.env.CORS_ORIGIN);
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.some(allowed => origin.includes(allowed))) {
+    if (isOriginAllowed(origin)) {
       callback(null, true);
     } else {
       console.log('[CORS] Blocked origin:', origin);
@@ -132,7 +129,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'cache-control'],
   exposedHeaders: ['Content-Type', 'Authorization'],
   preflightContinue: false,
   optionsSuccessStatus: 204
@@ -230,16 +227,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
   setHeaders: (res, path, stat) => {
     // Get origin from request to allow proper CORS
     const origin = res.req?.headers?.origin;
-    const allowedOrigins = [
-      'https://dev.shanon-technologies.com',
-      'https://www.dev.shanon-technologies.com',
-      'https://www.shanon-technologies.com',
-      'https://shanon-technologies.com',
-      'http://localhost:3000'
-    ];
     
-    // Check if origin is allowed
-    if (origin && allowedOrigins.some(allowed => origin.includes(allowed))) {
+    // Use centralized CORS function
+    if (origin && isOriginAllowed(origin)) {
       res.set('Access-Control-Allow-Origin', origin);
       res.set('Access-Control-Allow-Credentials', 'true');
     } else if (process.env.FRONT_URL) {
@@ -327,18 +317,11 @@ app.get('/uploads/:filename', (req, res) => {
   
   const imagePath = path.join(__dirname, 'uploads', filename);
   
-  // Set proper CORS headers for images
+  // Set proper CORS headers for images using centralized function
   const origin = req.headers.origin;
-  const allowedOrigins = [
-    'https://dev.shanon-technologies.com',
-    'https://www.dev.shanon-technologies.com',
-    'https://www.shanon-technologies.com',
-    'https://shanon-technologies.com',
-    'http://localhost:3000'
-  ];
   
-  // Set CORS headers
-  if (origin && allowedOrigins.some(allowed => origin.includes(allowed))) {
+  // Use centralized CORS function
+  if (origin && isOriginAllowed(origin)) {
     res.set('Access-Control-Allow-Origin', origin);
     res.set('Access-Control-Allow-Credentials', 'true');
   } else if (process.env.FRONT_URL) {
