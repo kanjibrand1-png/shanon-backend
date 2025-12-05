@@ -63,16 +63,39 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Configure CORS
+// Configure CORS - Must be before redirect middleware
 app.use(cors({
-  origin: [
-    'http://localhost:3000',  // Add this for local development
-    'https://www.shanon-technologies.com',
-    'https://shanon-technologies.com',
-    'https://dev.shanon-technologies.com',  // Frontend subdomain
-    'https://app.shanon-technologies.com'   // Backend subdomain
-  ],
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'https://www.shanon-technologies.com',
+      'https://shanon-technologies.com',
+      'https://dev.shanon-technologies.com',
+      'https://www.dev.shanon-technologies.com',  // In case of DNS issues
+      'https://app.shanon-technologies.com'
+    ];
+    
+    // Also check environment variables
+    if (process.env.FRONT_URL) allowedOrigins.push(process.env.FRONT_URL);
+    if (process.env.CORS_ORIGIN) allowedOrigins.push(process.env.CORS_ORIGIN);
+    
+    if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.some(allowed => origin.includes(allowed))) {
+      callback(null, true);
+    } else {
+      console.log('[CORS] Blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  exposedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 // Rate limiting middleware - DISABLED FOR DEVELOPMENT
@@ -108,8 +131,20 @@ app.use((req, res, next) => {
 
 // Domain redirects (similar to Cloudflare Workers Routes)
 // For Shanon Technologies website on LWS
-// IMPORTANT: This must run BEFORE API routes to catch www requests
+// IMPORTANT: Must skip OPTIONS (preflight) and API routes to avoid breaking CORS
 app.use((req, res, next) => {
+  // Skip redirect for:
+  // 1. OPTIONS requests (CORS preflight) - CRITICAL for CORS to work
+  // 2. API routes - API should be accessible directly
+  // 3. Static files and uploads
+  if (req.method === 'OPTIONS' || 
+      req.path.startsWith('/api') || 
+      req.path.startsWith('/uploads') ||
+      req.path.startsWith('/debug-host') ||
+      req.path.startsWith('/health')) {
+    return next();
+  }
+  
   // Get hostname from various possible sources (Render proxy, direct, etc.)
   const hostname = (req.headers.host || req.hostname || req.get('host') || req.headers['x-forwarded-host'] || '').toLowerCase();
   
@@ -117,7 +152,9 @@ app.use((req, res, next) => {
   const cleanHostname = hostname.split(':')[0].trim();
   
   // Debug logging to help troubleshoot
-  console.log('[Redirect Check] Hostname:', cleanHostname, '| Original:', hostname, '| Path:', req.path);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[Redirect Check] Hostname:', cleanHostname, '| Original:', hostname, '| Path:', req.path, '| Method:', req.method);
+  }
   
   // Redirect www.shanon-technologies.com to dev.shanon-technologies.com
   // Preserves path and query string (like Cloudflare dynamic redirect)
@@ -143,14 +180,31 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve static files from uploads directory
+// Serve static files from uploads directory with proper CORS
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
-  setHeaders: (res, path) => {
-    const allowedOrigin = process.env.FRONT_URL || process.env.CORS_ORIGIN || '*';
+  setHeaders: (res, path, stat) => {
+    // Get origin from request to allow proper CORS
+    const origin = res.req?.headers?.origin;
+    const allowedOrigins = [
+      'https://dev.shanon-technologies.com',
+      'https://www.dev.shanon-technologies.com',
+      'https://www.shanon-technologies.com',
+      'https://shanon-technologies.com',
+      'http://localhost:3000'
+    ];
+    
+    // Check if origin is allowed
+    if (origin && allowedOrigins.some(allowed => origin.includes(allowed))) {
+      res.set('Access-Control-Allow-Origin', origin);
+      res.set('Access-Control-Allow-Credentials', 'true');
+    } else if (process.env.FRONT_URL) {
+      res.set('Access-Control-Allow-Origin', process.env.FRONT_URL);
+    }
+    
     res.set('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.set('Access-Control-Allow-Origin', allowedOrigin);
-    res.set('Access-Control-Allow-Methods', 'GET');
+    res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.set('Access-Control-Allow-Headers', 'Content-Type');
+    res.set('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
   }
 }));
 
@@ -228,12 +282,28 @@ app.get('/uploads/:filename', (req, res) => {
   
   const imagePath = path.join(__dirname, 'uploads', filename);
   
-  // Set proper headers for images
-  const allowedOrigin = process.env.FRONT_URL || process.env.CORS_ORIGIN || '*';
+  // Set proper CORS headers for images
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    'https://dev.shanon-technologies.com',
+    'https://www.dev.shanon-technologies.com',
+    'https://www.shanon-technologies.com',
+    'https://shanon-technologies.com',
+    'http://localhost:3000'
+  ];
+  
+  // Set CORS headers
+  if (origin && allowedOrigins.some(allowed => origin.includes(allowed))) {
+    res.set('Access-Control-Allow-Origin', origin);
+    res.set('Access-Control-Allow-Credentials', 'true');
+  } else if (process.env.FRONT_URL) {
+    res.set('Access-Control-Allow-Origin', process.env.FRONT_URL);
+  }
+  
   res.set({
     'Content-Type': getContentType(filename),
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Methods': 'GET',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
     'Cross-Origin-Resource-Policy': 'cross-origin',
     'Cache-Control': 'public, max-age=31536000' // Cache for 1 year
   });
